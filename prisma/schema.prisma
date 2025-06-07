@@ -14,10 +14,20 @@ generator client {
 }
 
 model User {
-  id      String   @id @default(auto()) @map("_id") @db.ObjectId
-  email   String   @unique
-  name    String
-  age     Int
-  
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  email           String   @unique
+  name            String
+  password        String
+  repeatePassword String
+  telephone       String
+  address         String?
 }
 
+model Carro {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  matricula   String   @unique
+  marca       String
+  modelo      String
+  cor         String
+  cilindrada  Int
+}
