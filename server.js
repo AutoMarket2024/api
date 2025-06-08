@@ -1,14 +1,55 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import cors from "cors";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+import bodyParser from "body-parser";
+
 
 const prisma = new PrismaClient();
 const app = express();
+const PORT=3000;
+const JWT_SECRET = "segredo";
 
 app.use(cors());
 app.use(express.json());
 
-// metodo post para criar usuario
+// ✅ Conexão com MongoDB
+mongoose.connect("mongodb+srv://admin:123@user.lqedjx0.mongodb.net/User?retryWrites=true&w=majority&appName=User", {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => console.log("MongoDB conectado")).catch(err => console.error(err));
+
+// ✅ Modelo de usuário
+const UsuarioSchema = new mongoose.Schema({
+  email: String,
+  password: String,
+});
+const Usuario = mongoose.model("Usuario", UsuarioSchema);
+
+// ✅ Rota de login
+app.post("/login", async (req, res) => {
+  const { email, senha } = req.body;
+
+  const usuario = await Usuario.findOne({ email });
+  if (!usuario) {
+    return res.status(401).json({ success: false, message: "Usuário não encontrado" });
+  }
+
+  const senhaValida = await bcrypt.compare(senha, usuario.senha);
+  if (!senhaValida) {
+    return res.status(401).json({ success: false, message: "Senha inválida" });
+  }
+
+  const token = jwt.sign({ id: usuario._id, email: usuario.email }, JWT_SECRET, {
+    expiresIn: "1h",
+  });
+
+  res.json({ success: true, token });
+});
+
+// Create user
 app.post("/usuario", async (req, res) => {
   try {
     const user = await prisma.user.create({
@@ -27,8 +68,7 @@ app.post("/usuario", async (req, res) => {
   }
 });
 
-
-// metodo post para criar carro
+// Create car
 app.post("/carro", async (req, res) => {
   try {
     const cars = await prisma.carro.create({
@@ -46,16 +86,14 @@ app.post("/carro", async (req, res) => {
   }
 });
 
-// metodo get para listar usuario
+// Get users
 app.get("/usuario", async (req, res) => {
   try {
     let users = [];
     
-    // Check if there are query parameters for filtering
     if (Object.keys(req.query).length > 0) {
       const whereClause = {};
       
-      // Build where clause based on query parameters
       if (req.query.email) whereClause.email = req.query.email;
       if (req.query.name) whereClause.name = req.query.name;
       if (req.query.telephone) whereClause.telephone = req.query.telephone;
@@ -74,21 +112,20 @@ app.get("/usuario", async (req, res) => {
   }
 });
 
-// metodo get para listar carro
+// Get cars
 app.get("/carro", async (req, res) => {
   try {
     let cars = [];
     
-    // Check if there are query parameters for filtering
     if (Object.keys(req.query).length > 0) {
       const whereClause = {};
       
-      // Build where clause based on query parameters
       if (req.query.matricula) whereClause.matricula = req.query.matricula;
       if (req.query.marca) whereClause.marca = req.query.marca;
       if (req.query.modelo) whereClause.modelo = req.query.modelo;
       if (req.query.cor) whereClause.cor = req.query.cor;
-      if (req.query.cilindrada) whereClause.cilindrada = req.query.cilindrada;
+      if (req.query.cilindrada) whereClause.cilindrada = parseInt(req.query.cilindrada);
+      
       cars = await prisma.carro.findMany({
         where: whereClause,
       });
@@ -102,7 +139,7 @@ app.get("/carro", async (req, res) => {
   }
 });
 
-// metodo put para editar usuario
+// Update user
 app.put("/usuario/:id", async (req, res) => {
   try {
     const updatedUser = await prisma.user.update({
@@ -113,7 +150,7 @@ app.put("/usuario/:id", async (req, res) => {
         email: req.body.email,
         name: req.body.name,
         password: req.body.password,
-        repeatePassword: req.body.repeatepassword,
+        repeatePassword: req.body.repeatePassword, // Fixed typo
         telephone: req.body.telephone,
         address: req.body.address,
       },
@@ -124,7 +161,7 @@ app.put("/usuario/:id", async (req, res) => {
   }
 });
 
-// metodo put para editar carro
+// Update car
 app.put("/carro/:id", async (req, res) => {
   try {
     const updatedCar = await prisma.carro.update({
@@ -145,8 +182,7 @@ app.put("/carro/:id", async (req, res) => {
   }
 });
 
-
-// metodo delete para deletar usuario
+// Delete user
 app.delete("/usuario/:id", async (req, res) => {
   try {
     await prisma.user.delete({
@@ -160,7 +196,7 @@ app.delete("/usuario/:id", async (req, res) => {
   }
 });
 
-// metodo delete para deletar carro
+// Delete car
 app.delete("/carro/:id", async (req, res) => {
   try {
     await prisma.carro.delete({
@@ -168,12 +204,12 @@ app.delete("/carro/:id", async (req, res) => {
         id: req.params.id,
       },
     });
-    res.status(200).json({ message: "User deleted successfully" });
+    res.status(200).json({ message: "Car deleted successfully" }); // Fixed message
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
-app.listen(3000, () => {
-  console.log("Server is running on port 3000");
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
